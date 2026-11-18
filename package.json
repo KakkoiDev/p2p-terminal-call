@@ -1,0 +1,37 @@
+{
+  "name": "p2p-terminal-call",
+  "version": "0.1.0",
+  "description": "Text, audio and video call between two terminals, over p2p-core.",
+  "type": "module",
+  "bin": {
+    "p2p-call": "./call.js",
+    "p2p-call-hub": "./hub.js"
+  },
+  "files": [
+    "call.js",
+    "hub.js",
+    "render.js",
+    "hub-root",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "hub": "node hub.js",
+    "call": "node call.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "p2p-core": "git+https://github.com/KakkoiDev/p2p-core.git#a7057e2b3b6196d5835bb91aaffe841dcfaf232c"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KakkoiDev/p2p-terminal-call.git"
+  },
+  "homepage": "https://kakkoidev.github.io/p2p-terminal-call/",
+  "keywords": ["p2p", "terminal", "video-call", "ffmpeg", "tmux"],
+  "license": "MIT"
+}
