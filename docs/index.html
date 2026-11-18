@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>p2p-terminal-call</title>
+<meta name="description" content="A text, audio and video call between two terminals.">
+<style>
+  :root {
+    --bg: #fbfbf9; --fg: #1b1b1b; --muted: #5d5d5d; --line: #dedbd3;
+    --code-bg: #f0eee8; --accent: #b4441c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --fg: #e9e7e1; --muted: #a3a09a; --line: #34322e;
+      --code-bg: #201f1d; --accent: #e8794f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
+  h1 { font: 700 2rem/1.2 ui-monospace, "SF Mono", Menlo, monospace; margin: 0 0 8px; }
+  h2 { font-size: 1.15rem; margin: 40px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .lede { color: var(--muted); margin: 0 0 24px; font-size: 1.1rem; }
+  a { color: var(--accent); }
+  video { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #000; display: block; }
+  .caption { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 12px 14px; overflow-x: auto; font: 13.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .92em; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .warn { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; }
+  footer { margin-top: 48px; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>p2p-terminal-call</h1>
+  <p class="lede">A text, audio and video call between two terminals. Video is drawn with half blocks in
+    24-bit colour, audio plays through ffplay, chat is a line at the bottom. Proof of concept.</p>
+
+  <video src="demo.mp4" controls muted loop playsinline preload="metadata"></video>
+  <p class="caption">Two terminals in one tmux window, each showing the other's video (ffmpeg test sources here,
+    not a camera) and the shared chat.</p>
+
+  <h2>How it works</h2>
+  <ul>
+    <li><strong>Video</strong>: camera, ffmpeg, raw rgb24 frames (80x48 pixels, 10 fps), drawn as <code>▀</code> cells.</li>
+    <li><strong>Audio</strong>: microphone, ffmpeg, 16 kHz mono PCM in 40 ms chunks, played with <code>ffplay</code>.</li>
+    <li><strong>Transport</strong>: both sides connect to one small relay, the hub, built on
+      <a href="https://github.com/KakkoiDev/p2p-core">p2p-core</a>'s server transport.</li>
+  </ul>
+
+  <h2>Needs</h2>
+  <ul>
+    <li>Node 22+, and <code>ffmpeg</code> with <code>ffplay</code> (<code>brew install ffmpeg</code>).</li>
+    <li>macOS for camera and microphone. Test sources work anywhere ffmpeg runs.</li>
+    <li>A truecolor terminal: Ghostty, kitty, WezTerm, iTerm2.</li>
+    <li>Headphones. There is no echo cancellation.</li>
+  </ul>
+
+  <h2>Install</h2>
+<pre><code>npm install -g github:KakkoiDev/p2p-terminal-call</code></pre>
+  <p>This gives <code>p2p-call</code> and <code>p2p-call-hub</code>. Or run without installing:</p>
+<pre><code>npx -y -p github:KakkoiDev/p2p-terminal-call p2p-call-hub
+npx -y -p github:KakkoiDev/p2p-terminal-call p2p-call --server http://HUB:8787</code></pre>
+
+  <h2>Try it on one machine</h2>
+<pre><code>p2p-call-hub --host 127.0.0.1                                                # terminal 1
+p2p-call --name alice --video lavfi:mandelbrot --audio test --audio-out off  # terminal 2
+p2p-call --name bob --video test --audio off --audio-out off                 # terminal 3</code></pre>
+
+  <h2>Call a friend</h2>
+  <ol>
+    <li>Be on the same LAN or the same Tailscale tailnet.</li>
+    <li>One of you runs the hub on your tailnet IP (<code>tailscale ip -4</code>):
+<pre><code>p2p-call-hub --host 100.64.1.13</code></pre></li>
+    <li>Send your friend the address and a room name: <code>http://100.64.1.13:8787</code>, room <code>ours</code>.</li>
+    <li>You:
+<pre><code>p2p-call --server http://100.64.1.13:8787 --room ours --name alice</code></pre></li>
+    <li>Your friend:
+<pre><code>p2p-call --server http://100.64.1.13:8787 --room ours --name bob</code></pre></li>
+  </ol>
+  <p class="warn">The hub relays every message unencrypted: whoever runs it can read the chat and see and hear
+    the call, and anyone who reaches it and knows the room name can join that room. Run your own hub on a
+    network you trust. Do not expose it to the internet.</p>
+
+  <h2>Limits</h2>
+  <ul>
+    <li>No codec, no jitter buffer, no lip sync. Fine on a LAN or Tailscale, poor on a lossy link.</li>
+    <li>Two people per room. About 155 KB/s of video on the wire.</li>
+    <li>Not yet tested with a real camera and microphone or across two machines.</li>
+  </ul>
+
+  <footer>
+    <a href="https://github.com/KakkoiDev/p2p-terminal-call">Source on GitHub</a> · MIT license
+  </footer>
+</main>
+</body>
+</html>
