@@ -24,7 +24,9 @@ sides connect to one small relay (the hub) over WebSocket. Runs in Node, no brow
 - A terminal of at least 80 columns by 26 rows for the default video size.
 - **Headphones.** There is no echo cancellation; with speakers the call feeds back.
 
-## Install
+## How to use
+
+### Install
 
 Not on the npm registry. Install from GitHub, either once:
 
@@ -32,7 +34,8 @@ Not on the npm registry. Install from GitHub, either once:
 npm install -g github:KakkoiDev/p2p-terminal-call
 ```
 
-which gives two commands, `p2p-call` and `p2p-call-hub`, or run without installing:
+which gives three commands, `p2p-call`, `p2p-call-hub`, and `p2p-call-demo`, or run without
+installing:
 
 ```sh
 npx -y -p github:KakkoiDev/p2p-terminal-call p2p-call-hub
@@ -41,20 +44,53 @@ npx -y -p github:KakkoiDev/p2p-terminal-call p2p-call --server http://HUB:8787
 
 From a clone: `npm install`, then `node hub.js` and `node call.js`. `npm test` runs the tests.
 
-## Start locally: one machine, two terminals
+### Test on one machine
 
-No camera or microphone needed: `--video test` and `--audio test` use ffmpeg test sources (a
-colour pattern, a 440 Hz tone).
+From inside tmux, run one command:
 
 ```sh
-p2p-call-hub --host 127.0.0.1                                                    # terminal 1
-p2p-call --name alice --video lavfi:mandelbrot --audio test --audio-out off      # terminal 2
-p2p-call --name bob --video test --audio off --audio-out off                     # terminal 3
+p2p-call-demo
 ```
 
-Both sides show the other's video at the top, a status line (`in v` / `in a` count received video
-and audio messages), the chat below, and the input line at the bottom. Drop `--audio-out off` on
-one side to hear the tone.
+From a clone, use `npm install` once, then run `node demo.js` instead. The command starts a private
+hub on a random local port and opens a tmux window with Alice and Bob in two panes. Both use
+ffmpeg test sources, so no camera or microphone is needed.
+
+Both panes should change from `waiting` to the other caller's name, show moving video at the top,
+and show increasing `in v` counters. Bob's `in a` counter should also increase because Alice
+sends a 440 Hz test tone. Type a line and press Enter; it should appear in both panes. Press
+Ctrl-C in both panes to close the window; the launcher then stops the hub.
+
+To test Alice with a real camera and microphone, wear headphones and run:
+
+```sh
+p2p-call-demo --real
+```
+
+Use `node demo.js --real` from a clone. Bob plays Alice's microphone, and there is no echo
+cancellation. On first use, macOS should ask whether Ghostty may access the camera and microphone.
+Allow both prompts; if previously denied, enable Ghostty under **System Settings > Privacy &
+Security > Camera** and **Microphone**, then run the command again. Test sources do not trigger
+these prompts.
+
+If the launcher is unavailable, the manual fallback is three panes:
+
+```sh
+p2p-call-hub --host 127.0.0.1
+p2p-call --name alice --video lavfi:mandelbrot --audio test --audio-out off
+p2p-call --name bob --video test --audio off --audio-out off
+```
+
+Run one line in each pane. Device indexes can be selected with `--camera N` and `--mic N`; see
+[Options](#options).
+
+### Controls
+
+- Type a line and press Enter to send it.
+- Press Ctrl-C to quit a caller.
+- Watch `in v` and `in a` in the status line for received video and audio messages.
+
+For a call between two machines, follow [Call a friend](#call-a-friend).
 
 ## Call a friend
 
@@ -115,6 +151,8 @@ started from.
 
 `p2p-call-hub`: `--host` (default `0.0.0.0`), `--port` (default `8787`).
 
+`p2p-call-demo`: `--real` uses the real camera and microphone for Alice instead of test sources.
+
 ## Limits
 
 - The hub sees every message, and binary is base64 on the wire (~155 KB/s of video).
@@ -125,8 +163,9 @@ started from.
   ffmpeg runs.
 - Video frame rate is bounded by the terminal: each 80x48 frame is ~75 KB of escape codes. Above
   ~10 fps inside tmux expect lag; frames are dropped while the terminal is still drawing.
-- Tested: two processes on one machine, through the hub, with test sources. Not yet tested: a real
-  camera and microphone, two machines over Tailscale.
+- Tested: two processes on one machine, through the hub, with test sources, plus real camera and
+  microphone data delivery. Not yet tested: confirming audio playback through headphones or two
+  machines over Tailscale.
 
 ## License
 

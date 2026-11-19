@@ -13,6 +13,7 @@ import { appendFileSync, createWriteStream } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { joinRoom } from 'p2p-core';
 import { frameRows, splitter } from './render.js';
+import { videoInputArgs } from './media.js';
 
 const { values: opt } = parseArgs({
   options: {
@@ -74,11 +75,7 @@ function ffmpeg(args, onData) {
 function canSend() { return room.peers().length > 0; }
 
 if (opt.video !== 'off') {
-  const lavfi = opt.video === 'test' ? 'testsrc2' : opt.video.startsWith('lavfi:') ? opt.video.slice(6) : null;
-  const src = lavfi
-    ? ['-re', '-f', 'lavfi', '-i', `${lavfi}=size=${W}x${H}:rate=${FPS}`]
-    : ['-f', 'avfoundation', '-framerate', '30', '-video_size', '640x480', '-i', `${opt.camera}:none`,
-      '-vf', `fps=${FPS},scale=${W}:${H},hflip`];
+  const src = videoInputArgs({ video: opt.video, camera: opt.camera, width: W, height: H, fps: FPS });
   const header = Uint8Array.from([W >> 8, W & 255, H >> 8, H & 255]);
   ffmpeg([...src, '-pix_fmt', 'rgb24', '-f', 'rawvideo', 'pipe:1'], splitter(W * H * 3, (frame) => {
     if (!canSend()) return;
