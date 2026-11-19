@@ -34,12 +34,12 @@ Not on the npm registry. Install from GitHub, either once:
 npm install -g github:KakkoiDev/p2p-terminal-call
 ```
 
-which gives three commands, `p2p-call`, `p2p-call-hub`, and `p2p-call-demo`, or run without
-installing:
+which gives the `p2p-terminal-call` command. The existing `p2p-call`, `p2p-call-hub`, and
+`p2p-call-demo` commands remain available. Or run without installing:
 
 ```sh
-npx -y -p github:KakkoiDev/p2p-terminal-call p2p-call-hub
-npx -y -p github:KakkoiDev/p2p-terminal-call p2p-call --server http://HUB:8787
+npx -y -p github:KakkoiDev/p2p-terminal-call p2p-terminal-call hub
+npx -y -p github:KakkoiDev/p2p-terminal-call p2p-terminal-call call --server http://HUB:8787
 ```
 
 From a clone: `npm install`, then `node hub.js` and `node call.js`. `npm test` runs the tests.
@@ -49,7 +49,7 @@ From a clone: `npm install`, then `node hub.js` and `node call.js`. `npm test` r
 From inside tmux, run one command:
 
 ```sh
-p2p-call-demo
+p2p-terminal-call demo
 ```
 
 From a clone, use `npm install` once, then run `node demo.js` instead. The command starts a private
@@ -64,7 +64,7 @@ Ctrl-C in both panes to close the window; the launcher then stops the hub.
 To test Alice with a real camera and microphone, wear headphones and run:
 
 ```sh
-p2p-call-demo --real
+p2p-terminal-call demo --real
 ```
 
 Use `node demo.js --real` from a clone. Bob plays Alice's microphone, and there is no echo
@@ -76,9 +76,9 @@ these prompts.
 If the launcher is unavailable, the manual fallback is three panes:
 
 ```sh
-p2p-call-hub --host 127.0.0.1
-p2p-call --name alice --video lavfi:mandelbrot --audio test --audio-out off
-p2p-call --name bob --video test --audio off --audio-out off
+p2p-terminal-call hub --host 127.0.0.1
+p2p-terminal-call call --name alice --video lavfi:mandelbrot --audio test --audio-out off
+p2p-terminal-call call --name bob --video test --audio off --audio-out off
 ```
 
 Run one line in each pane. Device indexes can be selected with `--camera N` and `--mic N`; see
@@ -100,7 +100,7 @@ tailnet. One side runs the hub; it can be one of the two callers.
 1. Hub machine (say its Tailscale IP is `100.64.1.13`; `tailscale ip -4` prints it):
 
    ```sh
-   p2p-call-hub --host 100.64.1.13
+   p2p-terminal-call hub --host 100.64.1.13
    ```
 
    `--host 100.64.1.13` listens on the tailnet only. Leave `--host` out to listen on every
@@ -112,13 +112,13 @@ tailnet. One side runs the hub; it can be one of the two callers.
 3. You:
 
    ```sh
-   p2p-call --server http://100.64.1.13:8787 --room ours --name alice
+   p2p-terminal-call call --server http://100.64.1.13:8787 --room ours --name alice
    ```
 
 4. Your friend:
 
    ```sh
-   p2p-call --server http://100.64.1.13:8787 --room ours --name bob
+   p2p-terminal-call call --server http://100.64.1.13:8787 --room ours --name bob
    ```
 
 Your friend needs the same install and the same needs (Node, ffmpeg, a truecolor terminal,
@@ -132,7 +132,7 @@ started from.
 
 ## Options
 
-`p2p-call`:
+`p2p-terminal-call call` (also available as `p2p-call`):
 
 | Option | Default | |
 |---|---|---|
@@ -149,9 +149,11 @@ started from.
 | `--say TEXT` | | send TEXT when a peer joins |
 | `--duration S` | | quit after S seconds |
 
-`p2p-call-hub`: `--host` (default `0.0.0.0`), `--port` (default `8787`).
+`p2p-terminal-call hub` (also available as `p2p-call-hub`): `--host` (default `0.0.0.0`),
+`--port` (default `8787`).
 
-`p2p-call-demo`: `--real` uses the real camera and microphone for Alice instead of test sources.
+`p2p-terminal-call demo` (also available as `p2p-call-demo`): `--real` uses the real camera and
+microphone for Alice instead of test sources.
 
 ## Limits
 
