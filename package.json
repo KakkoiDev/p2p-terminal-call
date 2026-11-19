@@ -4,11 +4,13 @@
   "description": "Text, audio and video call between two terminals, over p2p-core.",
   "type": "module",
   "bin": {
+    "p2p-terminal-call": "./p2p-terminal-call.js",
     "p2p-call": "./call.js",
     "p2p-call-hub": "./hub.js",
     "p2p-call-demo": "./demo.js"
   },
   "files": [
+    "p2p-terminal-call.js",
     "call.js",
     "demo.js",
     "hub.js",
