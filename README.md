@@ -34,7 +34,8 @@ Not on the npm registry. Install from GitHub, either once:
 npm install -g github:KakkoiDev/p2p-terminal-call
 ```
 
-which gives two commands, `p2p-call` and `p2p-call-hub`, or run without installing:
+which gives three commands, `p2p-call`, `p2p-call-hub`, and `p2p-call-demo`, or run without
+installing:
 
 ```sh
 npx -y -p github:KakkoiDev/p2p-terminal-call p2p-call-hub
@@ -45,44 +46,43 @@ From a clone: `npm install`, then `node hub.js` and `node call.js`. `npm test` r
 
 ### Test on one machine
 
-From a clone, install the dependencies with `npm install`, open two terminal panes in the clone,
-and run the following commands. No camera or microphone is needed: `--video test` and `--audio
-test` use ffmpeg test sources (a colour pattern and a 440 Hz tone).
-
-In pane 1, start the hub in the background and then Alice:
+From inside tmux, run one command:
 
 ```sh
-P2P_HUB_LOG=/tmp/p2p-call-hub.log
-node hub.js --host 127.0.0.1 > "$P2P_HUB_LOG" 2>&1 &
-P2P_HUB_PID=$!
-node call.js --name alice --video lavfi:mandelbrot --audio test --audio-out off
+p2p-call-demo
 ```
 
-In pane 2, start Bob:
+From a clone, use `npm install` once, then run `node demo.js` instead. The command starts a private
+hub on a random local port and opens a tmux window with Alice and Bob in two panes. Both use
+ffmpeg test sources, so no camera or microphone is needed.
+
+Both panes should change from `waiting` to the other caller's name, show moving video at the top,
+and show increasing `in v` counters. Bob's `in a` counter should also increase because Alice
+sends a 440 Hz test tone. Type a line and press Enter; it should appear in both panes. Press
+Ctrl-C in both panes to close the window; the launcher then stops the hub.
+
+To test Alice with a real camera and microphone, wear headphones and run:
 
 ```sh
-node call.js --name bob --video test --audio off --audio-out off
+p2p-call-demo --real
 ```
 
-Both panes should change from `waiting` to `with alice` or `with bob`, show the other side's
-moving video at the top, and show increasing `in v` counters. Bob's `in a` counter should also
-increase because Alice sends the test tone. Type a line and press Enter; it should appear in both
-panes. Press Ctrl-C to stop each caller. In pane 1, then stop the background hub with:
+Use `node demo.js --real` from a clone. Bob plays Alice's microphone, and there is no echo
+cancellation. On first use, macOS should ask whether Ghostty may access the camera and microphone.
+Allow both prompts; if previously denied, enable Ghostty under **System Settings > Privacy &
+Security > Camera** and **Microphone**, then run the command again. Test sources do not trigger
+these prompts.
+
+If the launcher is unavailable, the manual fallback is three panes:
 
 ```sh
-kill "$P2P_HUB_PID"
+p2p-call-hub --host 127.0.0.1
+p2p-call --name alice --video lavfi:mandelbrot --audio test --audio-out off
+p2p-call --name bob --video test --audio off --audio-out off
 ```
 
-To hear the tone, remove `--audio-out off` from Bob's command. Use headphones: there is no echo
-cancellation, so speakers can feed back into a live microphone. Alternatively, keep
-`--audio-out off` on one side.
-
-To try real hardware, replace Alice's `--video lavfi:mandelbrot --audio test` with `--video
-camera --audio mic`. On first use, macOS should ask whether Ghostty may access the camera and
-microphone. Allow both prompts; if previously denied, enable Ghostty under **System Settings >
-Privacy & Security > Camera** and **Microphone**, then restart the caller. Device indexes can be
-selected with `--camera N` and `--mic N`; see [Options](#options). Test sources do not trigger
-these permission prompts.
+Run one line in each pane. Device indexes can be selected with `--camera N` and `--mic N`; see
+[Options](#options).
 
 ### Controls
 
@@ -151,6 +151,8 @@ started from.
 
 `p2p-call-hub`: `--host` (default `0.0.0.0`), `--port` (default `8787`).
 
+`p2p-call-demo`: `--real` uses the real camera and microphone for Alice instead of test sources.
+
 ## Limits
 
 - The hub sees every message, and binary is base64 on the wire (~155 KB/s of video).
@@ -161,9 +163,9 @@ started from.
   ffmpeg runs.
 - Video frame rate is bounded by the terminal: each 80x48 frame is ~75 KB of escape codes. Above
   ~10 fps inside tmux expect lag; frames are dropped while the terminal is still drawing.
-- Tested: two processes on one machine, through the hub, with test sources, plus real microphone
-  data delivery. Not yet tested: a real camera, listening to a real microphone through
-  headphones, or two machines over Tailscale.
+- Tested: two processes on one machine, through the hub, with test sources, plus real camera and
+  microphone data delivery. Not yet tested: confirming audio playback through headphones or two
+  machines over Tailscale.
 
 ## License
 

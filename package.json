@@ -5,11 +5,14 @@
   "type": "module",
   "bin": {
     "p2p-call": "./call.js",
-    "p2p-call-hub": "./hub.js"
+    "p2p-call-hub": "./hub.js",
+    "p2p-call-demo": "./demo.js"
   },
   "files": [
     "call.js",
+    "demo.js",
     "hub.js",
+    "media.js",
     "render.js",
     "hub-root",
     "README.md",
