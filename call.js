@@ -2,18 +2,23 @@
 /**
  * terminal-call: a text, audio and video call between two terminals, over p2p-core.
  *
- * p2p-core is only the data pipe here. ffmpeg captures the camera and microphone,
- * video travels as raw rgb24 frames (kind 'vid'), audio as 16 kHz mono s16le PCM
- * (kind 'aud'), chat as strings (kind 'chat'). Video is drawn with half blocks and
- * 24-bit colour, which works inside tmux with no configuration. Audio plays
- * through ffplay. See README.md for run steps.
+ * p2p-core carries messages and its Node media helpers drive ffmpeg capture and
+ * playback. Video travels as raw rgb24 frames (kind 'vid'), audio as 16 kHz mono
+ * s16le PCM (kind 'aud'), chat as strings (kind 'chat'). Video is drawn with half
+ * blocks and 24-bit colour, which works inside tmux with no configuration. See
+ * README.md for run steps.
  */
-import { spawn } from 'node:child_process';
 import { appendFileSync, createWriteStream } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { joinRoom } from 'p2p-core';
-import { frameRows, splitter } from './render.js';
-import { videoInputArgs } from './media.js';
+import {
+  captureAudio,
+  captureVideo,
+  createAudioPlayer,
+  unpackAudioChunk,
+  unpackVideoFrame,
+} from 'p2p-core/extras/node-media.js';
+import { frameRows } from './render.js';
 
 const { values: opt } = parseArgs({
   options: {
@@ -49,8 +54,8 @@ const room = joinRoom({
   profile: { name: opt.name.slice(0, 32) },
   validate: {
     chat: (d) => typeof d === 'string' && d.length > 0 && d.length <= 500,
-    vid: (d) => d instanceof Uint8Array && d.length > 4,
-    aud: (d) => d instanceof Uint8Array && d.length > 0 && d.length % 2 === 0,
+    vid: (d) => unpackVideoFrame(d) !== null,
+    aud: (d) => unpackAudioChunk(d) !== null,
   },
 });
 
@@ -61,74 +66,63 @@ let peerName = null;
 let remoteFrame = null;
 let input = '';
 
-// ---- media in ------------------------------------------------------------
-
-function ffmpeg(args, onData) {
-  const child = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
-  child.stdout.on('data', onData);
-  child.stderr.on('data', (b) => log(`ffmpeg: ${String(b).trim()}`));
-  child.on('error', (e) => log(`ffmpeg: ${e.message}`));
-  children.push(child);
-  return child;
-}
-
 function canSend() { return room.peers().length > 0; }
 
 if (opt.video !== 'off') {
-  const src = videoInputArgs({ video: opt.video, camera: opt.camera, width: W, height: H, fps: FPS });
-  const header = Uint8Array.from([W >> 8, W & 255, H >> 8, H & 255]);
-  ffmpeg([...src, '-pix_fmt', 'rgb24', '-f', 'rawvideo', 'pipe:1'], splitter(W * H * 3, (frame) => {
+  const capture = captureVideo({
+    video: opt.video,
+    camera: opt.camera,
+    width: W,
+    height: H,
+    fps: FPS,
+    onError: (error) => log(`ffmpeg: ${error.message}`),
+  }, (message) => {
     if (!canSend()) return;
-    const msg = new Uint8Array(4 + frame.length);
-    msg.set(header);
-    msg.set(frame, 4);
-    room.send('vid', msg);
+    room.send('vid', message);
     stats.sent.vid++;
-  }));
+  });
+  children.push(capture);
 }
 
 if (opt.audio !== 'off') {
-  const src = opt.audio === 'test'
-    ? ['-re', '-f', 'lavfi', '-i', `sine=frequency=440:sample_rate=${RATE}`]
-    : ['-f', 'avfoundation', '-i', `:${opt.mic}`];
-  // 40 ms per message.
-  ffmpeg([...src, '-ac', '1', '-ar', String(RATE), '-f', 's16le', 'pipe:1'], splitter(RATE * 2 * 0.04, (pcm) => {
+  const capture = captureAudio({
+    audio: opt.audio,
+    mic: opt.mic,
+    rate: RATE,
+    chunkMs: 40,
+    onError: (error) => log(`ffmpeg: ${error.message}`),
+  }, (message) => {
     if (!canSend()) return;
-    room.send('aud', pcm);
+    room.send('aud', message);
     stats.sent.aud++;
-  }));
+  });
+  children.push(capture);
 }
 
 // ---- media out -----------------------------------------------------------
 
-let player = null;
+const player = createAudioPlayer({ rate: RATE, onError: (error) => log(`ffplay: ${error.message}`) });
 function playAudio(pcm) {
   const out = opt['audio-out'];
   if (out === 'off') return;
   if (out.startsWith('file:')) { appendFileSync(out.slice(5), pcm); return; }
-  if (!player) {
-    player = spawn('ffplay', ['-hide_banner', '-loglevel', 'error', '-nodisp', '-fflags', 'nobuffer',
-      '-f', 's16le', '-ar', String(RATE), '-ch_layout', 'mono', '-i', 'pipe:0'], { stdio: ['pipe', 'ignore', 'ignore'] });
-    player.on('error', (e) => log(`ffplay: ${e.message}`));
-    player.stdin.on('error', () => {});
-    children.push(player);
-  }
-  player.stdin.write(pcm);
+  player.write(pcm);
 }
 
 room.onMessage('vid', (d) => {
-  const w = (d[0] << 8) | d[1];
-  const h = (d[2] << 8) | d[3];
-  if (d.length !== 4 + w * h * 3) return;
+  const frame = unpackVideoFrame(d);
+  if (!frame) return;
   stats.recv.vid++;
-  remoteFrame = { w, h, rgb: d.subarray(4) };
+  remoteFrame = { w: frame.width, h: frame.height, rgb: frame.data };
   drawVideo();
 });
 
 room.onMessage('aud', (d) => {
+  const pcm = unpackAudioChunk(d);
+  if (!pcm) return;
   stats.recv.aud++;
-  stats.recv.audBytes += d.length;
-  playAudio(d);
+  stats.recv.audBytes += pcm.length;
+  playAudio(pcm);
 });
 
 room.onMessage('chat', (text, from) => {
@@ -221,6 +215,7 @@ function quit() {
   if (tty) write(`${ESC}?25h${ESC}?1049l`);
   if (process.stdin.isTTY) process.stdin.setRawMode(false);
   for (const c of children) c.kill();
+  player.stop();
   room.leave();
   if (!tty) console.log(`stats ${JSON.stringify(stats)}`);
   const exit = () => setTimeout(() => process.exit(0), 100);
