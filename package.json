@@ -14,7 +14,6 @@
     "call.js",
     "demo.js",
     "hub.js",
-    "media.js",
     "render.js",
     "hub-root",
     "README.md",
@@ -30,7 +29,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "p2p-core": "git+https://github.com/KakkoiDev/p2p-core.git#a7057e2b3b6196d5835bb91aaffe841dcfaf232c"
+    "p2p-core": "git+https://github.com/KakkoiDev/p2p-core.git#7ef494180e1ca9f1b983ec7185e475e750419fcd"
   },
   "repository": {
     "type": "git",

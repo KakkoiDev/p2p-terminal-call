@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { videoInputArgs } from '../media.js';
+import { videoInputArgs } from 'p2p-core/extras/node-media.js';
 
 test('videoInputArgs: camera selects a supported AVFoundation pixel format', () => {
   assert.deepEqual(videoInputArgs({ video: 'camera', camera: '2', width: 80, height: 48, fps: 10 }), [
